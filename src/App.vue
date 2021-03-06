@@ -11,18 +11,34 @@
             <div class="mt-1 relative rounded-md shadow-md">
               <input
                 v-model="ticker"
-                @keydown.enter="addQuotation"
+                @input="getListCoins"
+                @keydown.enter="onlyTickers"
                 type="text"
                 name="wallet"
                 id="wallet"
+                autocomplete="off"
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
                 placeholder="Например DOGE"
               />
             </div>
+            <template v-if="validCoins.length">
+              <button
+                v-for="coin of validCoins"
+                :key="coin.id"
+                @click="addTickerAuto"
+                class="my-4 inline-flex items-center mx-0.5 py-0.5 px-2 border border-transparent shadow-sm text-xs leading-4 font-medium rounded-full text-black bg-gray-300 hover:bg-gray-400 transition-colors duration-300 focus:outline-none"
+              >
+                {{ coin.symbol }}
+              </button>
+              <hr class="w-full border-t border-gray-300" />
+            </template>
+            <p v-if="alert" class="text-sm text-red-600">
+              Такой тикер уже добавлен
+            </p>
           </div>
         </div>
         <button
-          @click="addQuotation"
+          @click="onlyTickers"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
         >
@@ -132,7 +148,10 @@ export default {
       ticker: "",
       tickers: [],
       sel: "",
-      graph: []
+      graph: [],
+      alert: false,
+      coinList: [],
+      validCoins: ""
     };
   },
   computed: {
@@ -140,14 +159,18 @@ export default {
       const max = Math.max(...this.graph);
       const min = Math.min(...this.graph);
       return this.graph.map(price => 5 + ((price - min) * 95) / (max - min));
+    },
+
+    tickerUpper() {
+      return this.ticker.toUpperCase();
     }
   },
   methods: {
-    addQuotation() {
+    addTicker() {
       const apiKey =
         "5213e1c97006620050854f97c4684d63e8a678fdd3292c5b48bf06611b520f64";
       const newTicker = reactive({
-        name: this.ticker,
+        name: this.tickerUpper,
         price: "-"
       });
       this.tickers.push(newTicker);
@@ -161,17 +184,50 @@ export default {
         if (this.sel?.name === newTicker.name) {
           this.graph.push(USD);
         }
-      }, 3000);
+      }, 10000);
       this.ticker = "";
     },
+
     removeTicker(ticker) {
-      this.tickers = this.tickers.filter(t => t !== ticker);
+      this.tickers = this.tickerUpper.filter(t => t !== ticker);
       this.sel = "";
     },
+
     select(ticker) {
       this.sel = ticker;
       this.graph = [];
+    },
+
+    onlyTickers() {
+      const arrTickers = this.tickers.map(t => t.name);
+      arrTickers.includes(this.tickerUpper)
+        ? (this.alert = true)
+        : this.addTicker();
+    },
+
+    getListCoins() {
+      this.alert = false;
+      const coins = this.coinList.filter(t =>
+        t.symbol.match(new RegExp(this.tickerUpper))
+      );
+      !this.ticker
+        ? (this.validCoins = "")
+        : (this.validCoins = coins.slice(0, 4));
+    },
+
+    addTickerAuto(e) {
+      this.ticker = e.target.innerText;
+      this.onlyTickers();
     }
+  },
+  async mounted() {
+    const apiKey =
+      "5213e1c97006620050854f97c4684d63e8a678fdd3292c5b48bf06611b520f64";
+    const res = await fetch(
+      `https://min-api.cryptocompare.com/data/blockchain/list?api_key=${apiKey}`
+    );
+    const { Data } = await res.json();
+    this.coinList = Object.values(Data);
   }
 };
 </script>
