@@ -96,8 +96,12 @@
             v-for="(t, idx) of paginatedTickers"
             :key="idx"
             @click="select(t)"
-            :class="{ 'border-4': selectedTicker === t }"
-            class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
+            :class="{
+              'border-4': selectedTicker === t,
+              'bg-red-100': t.status === '500',
+              'bg-white': t.status === '5'
+            }"
+            class="overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
             <div class="px-4 py-5 sm:p-6 text-center">
               <dt class="text-sm font-medium text-gray-500 truncate">
@@ -110,7 +114,8 @@
             <div class="w-full border-t border-gray-200"></div>
             <button
               @click.stop="removeTicker(t)"
-              class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
+              :class="{ 'bg-gray-100': t.status === '5' }"
+              class="flex items-center justify-center font-medium w-full px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
             >
               <svg
                 class="h-5 w-5"
@@ -177,7 +182,8 @@
 
 <script>
 import { reactive } from "vue";
-import { loadCoinList, subscribeToTicker, unsubscribeFromTicker } from "./api";
+import { subscribeToTicker, unsubscribeFromTicker } from "./core/observer";
+import { loadCoinList } from "./core/api";
 
 export default {
   name: "App",
@@ -246,27 +252,35 @@ export default {
   },
   methods: {
     formatPrice(price) {
-      if (typeof price === "number") {
-        return price > 1 ? +price.toFixed(2) : +price.toPrecision(2);
-      } else {
+      if (price === "-") {
         return price;
+      } else if (price === undefined) {
+        return "-";
       }
+      return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
-    updateTickers(tickerName, price) {
+    updateTickers(tickerName, price, status) {
       this.tickers
         .filter(t => t.name === tickerName)
-        .forEach(t => (t.price = price));
+        .forEach(t => {
+          if (t === this.selectedTicker && typeof price === "number")
+            this.graph.push(price);
+          t.price = price;
+          t.status = status;
+        });
     },
 
     addTicker() {
       const newTicker = reactive({
         name: this.addedTicker,
-        price: "-"
+        price: "-",
+        status: "5"
       });
       this.tickers = [...this.tickers, newTicker];
-      subscribeToTicker(newTicker.name, price =>
-        this.updateTickers(newTicker.name, price)
-      );
+      subscribeToTicker(newTicker.name, (price, status) => {
+        this.updateTickers(newTicker.name, price, status);
+      });
+      console.log(this.tickers);
     },
 
     removeTicker(ticker) {
@@ -288,8 +302,8 @@ export default {
       }
     },
 
-    addTickerAuto(coin) {
-      this.ticker = coin;
+    addTickerAuto(ticker) {
+      this.ticker = ticker;
       this.onlyTickers();
     }
   },
@@ -309,6 +323,9 @@ export default {
 
     filter() {
       this.page = 1;
+      if (this.filter === "undefined") {
+        this.filter = "";
+      }
     },
 
     pageStateOptions(value) {
@@ -347,9 +364,10 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach(ticker => {
-        subscribeToTicker(ticker.name, price =>
-          this.updateTickers(ticker.name, price)
-        );
+        subscribeToTicker(ticker.name, (price, status) => {
+          this.updateTickers(ticker.name, price, status);
+          console.log(status, "Начало нового цикла");
+        });
       });
     }
     const { Data } = await loadCoinList();
