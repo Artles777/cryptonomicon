@@ -14,11 +14,13 @@ socket.addEventListener("message", e => {
     PRICE: newPrice,
     PARAMETER: sub
   } = JSON.parse(e.data);
+
   if (type === INVALID_INDEX) {
     const coin = JSON.stringify(sub).split("~")[2];
     const handler = tickersHandlers.get(coin) ?? [];
     handler.forEach(fn => fn(newPrice, type));
   }
+
   if (type !== AGGREGATE_INDEX || newPrice === undefined) return;
   const handler = tickersHandlers.get(currency) ?? [];
   handler.forEach(fn => fn(newPrice, type));

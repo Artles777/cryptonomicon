@@ -250,6 +250,7 @@ export default {
       };
     }
   },
+
   methods: {
     formatPrice(price) {
       if (price === "-") {
@@ -259,6 +260,7 @@ export default {
       }
       return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
+
     updateTickers(tickerName, price, status) {
       this.tickers
         .filter(t => t.name === tickerName)
@@ -280,7 +282,6 @@ export default {
       subscribeToTicker(newTicker.name, (price, status) => {
         this.updateTickers(newTicker.name, price, status);
       });
-      console.log(this.tickers);
     },
 
     removeTicker(ticker) {
@@ -364,12 +365,14 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach(ticker => {
-        subscribeToTicker(ticker.name, (price, status) => {
-          this.updateTickers(ticker.name, price, status);
-          console.log(status, "Начало нового цикла");
-        });
+        setTimeout(() => {
+          subscribeToTicker(ticker.name, (price, status) => {
+            this.updateTickers(ticker.name, price, status);
+          });
+        }, 1000);
       });
     }
+
     const { Data } = await loadCoinList();
     this.coinList = Data;
 
